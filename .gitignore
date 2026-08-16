@@ -1,0 +1,41 @@
+# compiled output
+/dist
+/node_modules
+admin/node_modules
+admin/dist
+/build
+
+# logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# tests
+/coverage
+/.nyc_output
+
+# OS / IDE
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Prisma generated client
+/src/generated
+
+# direnv
+.direnv
+
+# DB dumps
+/backups

@@ -1,0 +1,108 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model Client {
+  id        String   @id @default(uuid())
+  slug      String   @unique
+  name      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  routingRules     RoutingRule[]
+  eventIdempotency EventIdempotency[]
+
+  @@map("clients")
+}
+
+model Bot {
+  id            String   @id @default(uuid())
+  name          String
+  telegramToken String   @unique @map("telegram_token")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  routingRules RoutingRule[]
+
+  @@map("bots")
+}
+
+model NotificationType {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  routingRules RoutingRule[]
+
+  @@map("notification_types")
+}
+
+model RoutingRule {
+  id                 String   @id @default(uuid())
+  clientId           String   @map("client_id")
+  botId              String   @map("bot_id")
+  notificationTypeId String   @map("notification_type_id")
+  /// Telegram chat id (supergroup ids не влезают в Int)
+  chatId             String   @map("chat_id")
+  /// 0 = без топика; так unique работает и для обычных чатов
+  threadId           Int      @default(0) @map("thread_id")
+  isActive           Boolean  @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  client           Client            @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  bot              Bot               @relation(fields: [botId], references: [id], onDelete: Restrict)
+  notificationType NotificationType  @relation(fields: [notificationTypeId], references: [id], onDelete: Restrict)
+  logs             NotificationLog[]
+
+  @@unique([clientId, botId, notificationTypeId, chatId, threadId])
+  @@index([clientId, notificationTypeId])
+  @@map("routing_rules")
+}
+
+model NotificationLog {
+  id            String             @id @default(uuid())
+  routingRuleId String             @map("routing_rule_id")
+  status        NotificationStatus
+  error         String?
+  /// Входящее событие: { client, type, payload, idempotency_key? }
+  request       Json?
+  /// Текст, который ушёл (или должен уйти) в Telegram
+  message       String?
+  sentAt        DateTime?          @map("sent_at")
+  createdAt     DateTime           @default(now()) @map("created_at")
+
+  routingRule RoutingRule @relation(fields: [routingRuleId], references: [id], onDelete: Cascade)
+
+  @@index([routingRuleId, status])
+  @@map("notification_logs")
+}
+
+model EventIdempotency {
+  id        String   @id @default(uuid())
+  clientId  String   @map("client_id")
+  key       String
+  response  Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, key])
+  @@map("event_idempotency")
+}

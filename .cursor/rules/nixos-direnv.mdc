@@ -1,0 +1,12 @@
+---
+description: NixOS + direnv conventions for local Node/Prisma work
+alwaysApply: true
+---
+
+# NixOS + direnv
+
+- Run Node, pnpm, and Prisma commands inside the project shell (`direnv` + `shell.nix`). Do not use Cursor-bundled or system Node.
+- After changing `.envrc`, run `direnv allow`.
+- Secrets live in `.env` (gitignored). `.envrc` loads them with `dotenv_if_exists .env`.
+- Postgres (`notification_hub`) and Redis come from shared Infra on `localhost:5432` / `localhost:6379`. Use `docker-compose.yml` only when Infra is not running.
+- After each completed task in `docs/plan.md`, mark the checkbox and keep notes in the same file.
