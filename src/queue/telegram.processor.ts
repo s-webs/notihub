@@ -51,12 +51,32 @@ export class TelegramProcessor extends WorkerHost {
       throw new UnrecoverableError('Bot is missing or inactive');
     }
 
-    const sent = await this.telegram.sendMessage({
+    const request = log.request;
+    const payload =
+      request && typeof request === 'object' && !Array.isArray(request)
+        ? request.payload
+        : null;
+    const document =
+      payload && typeof payload === 'object' && !Array.isArray(payload)
+        ? payload.document
+        : null;
+    const attachment =
+      document &&
+      typeof document === 'object' &&
+      !Array.isArray(document) &&
+      typeof document.url === 'string' &&
+      typeof document.filename === 'string'
+        ? { documentUrl: document.url, filename: document.filename }
+        : null;
+    const input = {
       token: bot.telegramToken,
       chatId: job.data.chatId,
       threadId: job.data.threadId,
       text: job.data.text,
-    });
+    };
+    const sent = attachment
+      ? await this.telegram.sendDocument({ ...input, ...attachment })
+      : await this.telegram.sendMessage(input);
 
     if (sent.ok) {
       await this.prisma.notificationLog.updateMany({
