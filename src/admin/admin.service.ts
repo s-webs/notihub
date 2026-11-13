@@ -1,10 +1,18 @@
+import { InjectQueue } from '@nestjs/bullmq';
 import {
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Queue } from 'bullmq';
 import { Prisma } from '../generated/prisma/client';
+import { NotificationStatus } from '../generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  TELEGRAM_SEND_JOB,
+  TELEGRAM_SEND_QUEUE,
+  TelegramJobData,
+} from '../queue/telegram-queue.constants';
 import { CreateBotDto, UpdateBotDto } from './dto/bot.dto';
 import { CreateClientDto, UpdateClientDto } from './dto/client.dto';
 import { ListLogsQueryDto } from './dto/list-logs.query';
@@ -19,7 +27,11 @@ import {
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @InjectQueue(TELEGRAM_SEND_QUEUE)
+    private readonly telegramQueue: Queue<TelegramJobData>,
+  ) {}
 
   listClients() {
     return this.prisma.client.findMany({ orderBy: { name: 'asc' } });
@@ -256,6 +268,46 @@ export class AdminService {
     ]);
 
     return { total, take, skip, items };
+  }
+
+  async retryLog(id: string) {
+    const log = await this.prisma.notificationLog.findUnique({
+      where: { id },
+      include: { routingRule: true },
+    });
+    if (!log) {
+      throw new NotFoundException('Log not found');
+    }
+    if (log.status !== NotificationStatus.FAILED) {
+      throw new ConflictException('Only FAILED deliveries can be retried');
+    }
+
+    const existing = await this.telegramQueue.getJob(log.id);
+    if (existing) {
+      await existing.remove();
+    }
+
+    const updated = await this.prisma.notificationLog.updateMany({
+      where: { id: log.id, status: NotificationStatus.FAILED },
+      data: { status: NotificationStatus.PENDING, error: null },
+    });
+    if (updated.count === 0) {
+      throw new ConflictException('Delivery is already being retried');
+    }
+
+    await this.telegramQueue.add(
+      TELEGRAM_SEND_JOB,
+      {
+        logId: log.id,
+        botId: log.routingRule.botId,
+        chatId: log.routingRule.chatId,
+        threadId: log.routingRule.threadId,
+        text: log.message ?? '',
+      },
+      { jobId: log.id },
+    );
+
+    return { id: log.id, status: NotificationStatus.PENDING };
   }
 
   private async ensureClient(id: string) {

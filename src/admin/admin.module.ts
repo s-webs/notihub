@@ -5,9 +5,11 @@ import { BotsController } from './bots.controller';
 import { ClientsController } from './clients.controller';
 import { LogsController } from './logs.controller';
 import { NotificationTypesController } from './notification-types.controller';
+import { QueueModule } from '../queue/queue.module';
 import { RoutingRulesController } from './routing-rules.controller';
 
 @Module({
+  imports: [QueueModule],
   controllers: [
     ClientsController,
     BotsController,

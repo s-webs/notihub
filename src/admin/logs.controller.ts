@@ -1,4 +1,11 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { BasicAuthGuard } from './basic-auth.guard';
 import { ListLogsQueryDto } from './dto/list-logs.query';
@@ -11,5 +18,10 @@ export class LogsController {
   @Get()
   list(@Query() query: ListLogsQueryDto) {
     return this.admin.listLogs(query);
+  }
+
+  @Post(':id/retry')
+  retry(@Param('id') id: string) {
+    return this.admin.retryLog(id);
   }
 }

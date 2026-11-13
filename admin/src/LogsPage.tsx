@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react';
 import { api } from './api';
 import { previewMessage, sanitizeTelegramHtml } from './format-message';
 import type { Bot, Client, LogItem } from './types';
-import { Badge, Field, Select } from './ui';
+import { Badge, Button, Field, Select } from './ui';
 
 export function LogsPage() {
   const [items, setItems] = useState<LogItem[]>([]);
@@ -41,6 +41,16 @@ export function LogsPage() {
   useEffect(() => {
     void load().catch((err: Error) => setError(err.message));
   }, [clientId, botId, status]);
+
+  async function retry(id: string) {
+    setError(null);
+    try {
+      await api(`/logs/${id}/retry`, { method: 'POST' });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось повторить');
+    }
+  }
 
   const tone = {
     SENT: 'ok',
@@ -152,7 +162,7 @@ export function LogsPage() {
                   {open ? (
                     <tr className="border-t border-border">
                       <td colSpan={6} className="bg-muted/40 px-4 py-4">
-                        <LogDetails item={item} />
+                        <LogDetails item={item} onRetry={() => void retry(item.id)} />
                       </td>
                     </tr>
                   ) : null}
@@ -166,7 +176,13 @@ export function LogsPage() {
   );
 }
 
-function LogDetails({ item }: { item: LogItem }) {
+function LogDetails({
+  item,
+  onRetry,
+}: {
+  item: LogItem;
+  onRetry: () => void;
+}) {
   const requestJson = item.request
     ? JSON.stringify(item.request, null, 2)
     : null;
@@ -193,6 +209,11 @@ function LogDetails({ item }: { item: LogItem }) {
           <p className="rounded-md border border-red-200 bg-red-50 p-3 font-mono text-xs text-destructive whitespace-pre-wrap">
             {item.error}
           </p>
+        ) : null}
+        {item.status === 'FAILED' ? (
+          <Button type="button" onClick={onRetry}>
+            Повторить отправку
+          </Button>
         ) : null}
         <p className="font-mono text-xs text-muted-foreground">
           чат {item.routingRule.chatId} / топик {item.routingRule.threadId}
