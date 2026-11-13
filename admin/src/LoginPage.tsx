@@ -6,7 +6,7 @@ import { Button, Field, Input } from './ui';
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const [user, setUser] = useState('admin');
+  const [user, setUser] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +35,8 @@ export function LoginPage() {
           <Input
             id="user"
             autoComplete="username"
+            autoFocus
+            required
             value={user}
             onChange={(event) => setUser(event.target.value)}
           />
@@ -44,6 +46,7 @@ export function LoginPage() {
             id="password"
             type="password"
             autoComplete="current-password"
+            required
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />

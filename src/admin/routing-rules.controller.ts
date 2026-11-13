@@ -7,10 +7,12 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { BasicAuthGuard } from './basic-auth.guard';
+import { ListRoutingRulesQueryDto } from './dto/list-routing-rules.query';
 import {
   CreateRoutingRuleDto,
   UpdateRoutingRuleDto,
@@ -22,8 +24,8 @@ export class RoutingRulesController {
   constructor(private readonly admin: AdminService) {}
 
   @Get()
-  list() {
-    return this.admin.listRoutingRules();
+  list(@Query() query: ListRoutingRulesQueryDto) {
+    return this.admin.listRoutingRules(query.clientId);
   }
 
   @Post()

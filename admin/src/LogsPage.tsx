@@ -55,7 +55,7 @@ export function LogsPage() {
         <p className="text-sm text-muted-foreground">{total} записей</p>
       </div>
       <div className="grid gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-3">
-        <Field label="Клиент">
+        <Field label="Проект">
           <Select
             value={clientId}
             onChange={(event) => setClientId(event.target.value)}
@@ -104,7 +104,7 @@ export function LogsPage() {
             <tr>
               <th className="w-8 px-3 py-2 font-medium" />
               <th className="px-3 py-2 font-medium">Время</th>
-              <th className="px-3 py-2 font-medium">Клиент</th>
+              <th className="px-3 py-2 font-medium">Проект</th>
               <th className="px-3 py-2 font-medium">Тип</th>
               <th className="px-3 py-2 font-medium">Сообщение</th>
               <th className="px-3 py-2 font-medium">Статус</th>

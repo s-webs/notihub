@@ -4,12 +4,14 @@
 
 Всё делается в админке, без деплоя кода. Dev UI: http://localhost:3041/admin/ (`pnpm admin:dev`). После `pnpm admin:build` — http://localhost:3040/admin/. Логин: `ADMIN_USER` / `ADMIN_PASSWORD`.
 
-1. **Client** — slug источника (`almaty-foods`, `skma`). Его же передают в `POST /events` как `client`. «Изменить» правит slug и имя.
+1. **Проект (Client)** — slug источника (`almaty-foods`, `skma`). Его же передают в `POST /events` как `client`. Создание, редактирование и удаление открываются на отдельных экранах. В карточке проекта находятся его маршруты и типы уведомлений.
 2. **Bot** — имя и `telegram_token`. В API токен всегда masked. При редактировании пустой token не перезаписывает текущий. Бот должен быть админом супергруппы, если нужны топики.
-3. **Notification type** — `code` (стабильный, латиница) и человекочитаемое имя. Источник шлёт этот `code` в поле `type`. «Изменить» правит code и имя.
-   - Уже есть: `price_changed`, `stock_threshold`, `debtor`, `stock_replenished`, `app_error`.
-4. **Routing rule** — client + bot + type + `chat_id` + `thread_id` (0 = без топика). Можно несколько правил на один тип (несколько чатов). «Изменить» правит все поля маршрута.
+3. **Notification type** — создаётся внутри проекта. `code` (стабильный, латиница) уникален в пределах проекта, поэтому разные проекты могут использовать одинаковый код. Источник шлёт его в поле `type` вместе со slug проекта в поле `client`. Создание, редактирование и удаление типов открываются на отдельных экранах.
+   - Типы из seed: `price_changed`, `stock_threshold`, `debtor`, `stock_replenished`, `app_error` для каждого seed-проекта. При миграции ранее общие типы копируются в каждый существующий проект, а маршруты сохраняют соответствие.
+4. **Routing rule** — создаётся внутри выбранного проекта; включает bot + тип этого проекта + `chat_id` + `thread_id` (0 = без топика). Можно несколько правил на один тип (несколько чатов). «Изменить» правит поля маршрута, но не переносит его в другой проект.
 5. Проверка: `POST /events` с этим `client`/`type` и `payload.message`. В **Logs** статус `PENDING` → `SENT` (или `FAILED` с текстом Telegram). Клик по строке лога раскрывает читаемое сообщение и JSON исходного запроса.
+
+Административный API типов теперь находится по пути `/api/admin/clients/:clientId/notification-types` (и `/:id` для отдельного типа). Прежний глобальный путь `/api/admin/notification-types` больше не используется.
 
 OpenAPI: http://localhost:3040/docs
 
@@ -60,7 +62,7 @@ docker build -t notihub:local .
 Полный стек (Postgres + Redis + app), если нет общей Infra:
 
 ```bash
-docker compose --profile app up -d --build
+docker compose up -d --build
 ```
 
 Только приложение к уже бегущим Infra Postgres/Redis:
@@ -99,4 +101,4 @@ Cron раз в сутки, например 03:15:
 pg_restore --clean --if-exists --no-owner -d "$DATABASE_URL" backups/notihub-YYYYMMDDTHHMMSSZ.dump
 ```
 
-Копируйте дампы с сервера (не только локальный диск). Redis можно не бэкапить: очередь восстановится из новых событий, идемпотентность — в Postgres (`event_idempotency`).
+Копируйте дампы с сервера (не только локальный диск). Идемпотентность хранится в PostgreSQL (`event_idempotency`). При потере Redis сервис пытается заново поставить задания для старых `PENDING`-логов из PostgreSQL; это не гарантия восстановления всех состояний очереди и не замена проверке восстановления из бэкапа.

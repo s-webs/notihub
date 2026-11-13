@@ -25,6 +25,10 @@ export class AdminService {
     return this.prisma.client.findMany({ orderBy: { name: 'asc' } });
   }
 
+  getClient(id: string) {
+    return this.ensureClient(id);
+  }
+
   async createClient(dto: CreateClientDto) {
     try {
       return await this.prisma.client.create({
@@ -103,23 +107,34 @@ export class AdminService {
     }
   }
 
-  listNotificationTypes() {
-    return this.prisma.notificationType.findMany({ orderBy: { code: 'asc' } });
+  async listNotificationTypes(clientId: string) {
+    await this.ensureClient(clientId);
+    return this.prisma.notificationType.findMany({
+      where: { clientId },
+      orderBy: { code: 'asc' },
+    });
   }
 
-  async createNotificationType(dto: CreateNotificationTypeDto) {
+  getNotificationType(clientId: string, id: string) {
+    return this.ensureType(id, clientId);
+  }
+
+  async createNotificationType(clientId: string, dto: CreateNotificationTypeDto) {
+    await this.ensureClient(clientId);
     try {
-      return await this.prisma.notificationType.create({ data: dto });
+      return await this.prisma.notificationType.create({
+        data: { ...dto, clientId },
+      });
     } catch (error) {
       uniqueOrThrow(error, 'Notification type code already exists');
     }
   }
 
-  async updateNotificationType(id: string, dto: UpdateNotificationTypeDto) {
-    await this.ensureType(id);
+  async updateNotificationType(clientId: string, id: string, dto: UpdateNotificationTypeDto) {
+    await this.ensureType(id, clientId);
     try {
       return await this.prisma.notificationType.update({
-        where: { id },
+        where: { clientId_id: { clientId, id } },
         data: dto,
       });
     } catch (error) {
@@ -127,17 +142,20 @@ export class AdminService {
     }
   }
 
-  async deleteNotificationType(id: string) {
-    await this.ensureType(id);
+  async deleteNotificationType(clientId: string, id: string) {
+    await this.ensureType(id, clientId);
     try {
-      await this.prisma.notificationType.delete({ where: { id } });
+      await this.prisma.notificationType.delete({
+        where: { clientId_id: { clientId, id } },
+      });
     } catch (error) {
       inUseOrThrow(error, 'Notification type is used by routing rules');
     }
   }
 
-  listRoutingRules() {
+  listRoutingRules(clientId?: string) {
     return this.prisma.routingRule.findMany({
+      where: clientId ? { clientId } : undefined,
       orderBy: { createdAt: 'desc' },
       include: {
         client: { select: { id: true, slug: true, name: true } },
@@ -151,7 +169,7 @@ export class AdminService {
     await Promise.all([
       this.ensureClient(dto.clientId),
       this.ensureBot(dto.botId),
-      this.ensureType(dto.notificationTypeId),
+      this.ensureType(dto.notificationTypeId, dto.clientId),
     ]);
     try {
       return await this.prisma.routingRule.create({
@@ -175,13 +193,13 @@ export class AdminService {
   }
 
   async updateRoutingRule(id: string, dto: UpdateRoutingRuleDto) {
-    await this.ensureRule(id);
+    const rule = await this.ensureRule(id);
+    const clientId = dto.clientId ?? rule.clientId;
+    const typeId = dto.notificationTypeId ?? rule.notificationTypeId;
     await Promise.all([
       dto.clientId ? this.ensureClient(dto.clientId) : Promise.resolve(),
       dto.botId ? this.ensureBot(dto.botId) : Promise.resolve(),
-      dto.notificationTypeId
-        ? this.ensureType(dto.notificationTypeId)
-        : Promise.resolve(),
+      this.ensureType(typeId, clientId),
     ]);
     try {
       return await this.prisma.routingRule.update({
@@ -245,6 +263,7 @@ export class AdminService {
     if (!row) {
       throw new NotFoundException('Client not found');
     }
+    return row;
   }
 
   private async ensureBot(id: string) {
@@ -254,13 +273,14 @@ export class AdminService {
     }
   }
 
-  private async ensureType(id: string) {
+  private async ensureType(id: string, clientId?: string) {
     const row = await this.prisma.notificationType.findUnique({
-      where: { id },
+      where: clientId ? { clientId_id: { clientId, id } } : { id },
     });
     if (!row) {
       throw new NotFoundException('Notification type not found');
     }
+    return row;
   }
 
   private async ensureRule(id: string) {
@@ -268,6 +288,7 @@ export class AdminService {
     if (!row) {
       throw new NotFoundException('Routing rule not found');
     }
+    return row;
   }
 }
 

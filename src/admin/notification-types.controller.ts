@@ -16,29 +16,34 @@ import {
   UpdateNotificationTypeDto,
 } from './dto/notification-type.dto';
 
-@Controller('api/admin/notification-types')
+@Controller('api/admin/clients/:clientId/notification-types')
 @UseGuards(BasicAuthGuard)
 export class NotificationTypesController {
   constructor(private readonly admin: AdminService) {}
 
   @Get()
-  list() {
-    return this.admin.listNotificationTypes();
+  list(@Param('clientId') clientId: string) {
+    return this.admin.listNotificationTypes(clientId);
+  }
+
+  @Get(':id')
+  get(@Param('clientId') clientId: string, @Param('id') id: string) {
+    return this.admin.getNotificationType(clientId, id);
   }
 
   @Post()
-  create(@Body() dto: CreateNotificationTypeDto) {
-    return this.admin.createNotificationType(dto);
+  create(@Param('clientId') clientId: string, @Body() dto: CreateNotificationTypeDto) {
+    return this.admin.createNotificationType(clientId, dto);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateNotificationTypeDto) {
-    return this.admin.updateNotificationType(id, dto);
+  update(@Param('clientId') clientId: string, @Param('id') id: string, @Body() dto: UpdateNotificationTypeDto) {
+    return this.admin.updateNotificationType(clientId, id, dto);
   }
 
   @Delete(':id')
   @HttpCode(204)
-  remove(@Param('id') id: string) {
-    return this.admin.deleteNotificationType(id);
+  remove(@Param('clientId') clientId: string, @Param('id') id: string) {
+    return this.admin.deleteNotificationType(clientId, id);
   }
 }

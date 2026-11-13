@@ -42,23 +42,17 @@ async function main() {
     { code: 'app_error', name: 'Ошибка приложения' },
   ];
 
-  const notificationTypes = [];
-  for (const type of types) {
-    notificationTypes.push(
-      await prisma.notificationType.upsert({
-        where: { code: type.code },
-        update: { name: type.name },
-        create: type,
-      }),
-    );
-  }
-
   const chatId = process.env.TELEGRAM_CHAT_ID ?? '-1004373958039';
   const threadId = Number(process.env.TELEGRAM_THREAD_ID ?? '4');
 
   let rulesCount = 0;
   for (const client of clients) {
-    for (const notificationType of notificationTypes) {
+    for (const type of types) {
+      const notificationType = await prisma.notificationType.upsert({
+        where: { clientId_code: { clientId: client.id, code: type.code } },
+        update: { name: type.name },
+        create: { ...type, clientId: client.id },
+      });
       await prisma.routingRule.upsert({
         where: {
           clientId_botId_notificationTypeId_chatId_threadId: {
@@ -89,7 +83,7 @@ async function main() {
     chatId,
     threadId,
     rules: rulesCount,
-    notificationTypes: notificationTypes.map((type) => type.code),
+    notificationTypes: types.map((type) => type.code),
   });
 }
 

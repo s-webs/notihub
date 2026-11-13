@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Request, Response } from 'express';
+import { Request } from 'express';
 
 @Injectable()
 export class BasicAuthGuard implements CanActivate {
@@ -14,7 +14,6 @@ export class BasicAuthGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const http = context.switchToHttp();
     const request = http.getRequest<Request>();
-    const response = http.getResponse<Response>();
     const expectedUser = this.config.get<string>('ADMIN_USER');
     const expectedPassword = this.config.get<string>('ADMIN_PASSWORD');
 
@@ -24,7 +23,6 @@ export class BasicAuthGuard implements CanActivate {
 
     const header = request.headers.authorization;
     if (!header?.startsWith('Basic ')) {
-      response.setHeader('WWW-Authenticate', 'Basic realm="NotiHub"');
       throw new UnauthorizedException();
     }
 
@@ -34,7 +32,6 @@ export class BasicAuthGuard implements CanActivate {
     const password = decoded.slice(separator + 1);
 
     if (user !== expectedUser || password !== expectedPassword) {
-      response.setHeader('WWW-Authenticate', 'Basic realm="NotiHub"');
       throw new UnauthorizedException();
     }
 

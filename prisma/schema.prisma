@@ -23,6 +23,7 @@ model Client {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   routingRules     RoutingRule[]
+  notificationTypes NotificationType[]
   eventIdempotency EventIdempotency[]
 
   @@map("clients")
@@ -43,13 +44,17 @@ model Bot {
 
 model NotificationType {
   id        String   @id @default(uuid())
-  code      String   @unique
+  clientId  String   @map("client_id")
+  code      String
   name      String
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
   routingRules RoutingRule[]
 
+  @@unique([clientId, code])
+  @@unique([clientId, id])
   @@map("notification_types")
 }
 
@@ -68,7 +73,7 @@ model RoutingRule {
 
   client           Client            @relation(fields: [clientId], references: [id], onDelete: Restrict)
   bot              Bot               @relation(fields: [botId], references: [id], onDelete: Restrict)
-  notificationType NotificationType  @relation(fields: [notificationTypeId], references: [id], onDelete: Restrict)
+  notificationType NotificationType  @relation(fields: [clientId, notificationTypeId], references: [clientId, id], onDelete: Restrict)
   logs             NotificationLog[]
 
   @@unique([clientId, botId, notificationTypeId, chatId, threadId])

@@ -4,42 +4,32 @@
 
 Хаб **не содержит SDK**. Любой источник (Laravel, Python, Go, n8n, Zapier) шлёт HTTP.
 
-## Требования
-
-- NixOS + [direnv](https://direnv.net/) (`use nix` в `.envrc`)
-- Docker (общая Infra или `docker-compose.yml` в этом репозитории)
-
-## Локальный запуск
+## Быстрый запуск в Docker
 
 ```bash
-direnv allow
-cp .env.example .env   # при необходимости поправь URL
-pnpm install
-
-# Postgres/Redis: по умолчанию общая Infra (localhost:5432 / :6379).
-# Если Infra не запущена:
-docker compose up -d
-
-pnpm prisma:migrate
-pnpm start:dev
+cp .env.example .env
+# Задайте ADMIN_USER, ADMIN_PASSWORD и EVENTS_API_TOKEN в .env.
+docker compose up -d --build
 ```
 
-Сервис слушает `PORT` из `.env` (по умолчанию 3040).
+Compose поднимает приложение, PostgreSQL и Redis; Docker entrypoint применяет миграции. PostgreSQL и Redis в этом compose доступны только внутри Docker-сети. Для разработки backend на хосте нужны отдельно доступные экземпляры PostgreSQL и Redis с адресами в `.env`, затем `pnpm install`, `pnpm prisma:migrate`, `pnpm start:dev` и `pnpm admin:dev`. NixOS/direnv поддерживаются через `.envrc`, но не обязательны для Docker-запуска.
+
+Сервис слушает `PORT` из `.env` (по умолчанию 3040); compose публикует порт 3040.
 
 - Health: http://localhost:3040/health
 - OpenAPI UI: http://localhost:3040/docs
 - Очередь: http://localhost:3040/queues
-- Админка: http://localhost:3041/admin/ (`pnpm admin:dev`) или http://localhost:3040/admin/ после `pnpm admin:build`
+- Админка: http://localhost:3040/admin/ в Docker; http://localhost:3041/admin/ при `pnpm admin:dev`
 
 Маршрутизация в чат появляется после `RoutingRule` (клиент + тип + bot + chat_id). Токен бота — в таблице `bots` или через seed (`TELEGRAM_BOT_TOKEN` в `.env`).
 
-`POST /events` ставит отправку в BullMQ (ответ `queued: true`, статус лога `PENDING`). Повтор с тем же `idempotency_key` не создаёт дубль.
+`POST /events` ставит найденные доставки в BullMQ (ответ `queued: true`, начальный статус лога `PENDING`). Проверяйте `matched`: при нуле маршрутов заданий нет. Последовательный повтор с тем же `idempotency_key` возвращает прежний ответ; строгой дедупликации одновременных запросов пока нет.
 
 ## Интеграция: `POST /events`
 
 Тело: `{ "client", "type", "payload", "idempotency_key?" }`.
 
-Типы из seed: `price_changed`, `stock_threshold`, `debtor`, `stock_replenished`, `app_error`. Если в `payload` есть `message` или `text`, хаб отправляет его в Telegram как HTML.
+Типы уведомлений настраиваются внутри проекта; один `type` может использоваться в нескольких проектах независимо. Типы из seed: `price_changed`, `stock_threshold`, `debtor`, `stock_replenished`, `app_error`. Для готового HTML-текста передайте непустой `payload.message` (или `payload.text`, если `message` отсутствует).
 
 Если задан `EVENTS_API_TOKEN`, нужен заголовок `Authorization: Bearer <token>` или `X-Notihub-Token`.
 
@@ -132,6 +122,7 @@ curl -sS -X POST "http://localhost:3040/webhooks/glitchtip?client=almaty-foods" 
 ## Документация
 
 - [docs/integration.md](docs/integration.md) — для команд, подключающих свой сервис к хабу (auth, `POST /events`, идемпотентность, форматирование сообщений, webhook-адаптеры, готовые примеры на PHP/Python/Node).
+- [docs/architecture.md](docs/architecture.md) — схема компонентов, модель данных, поток события и гарантии доставки.
 - [docs/operations.md](docs/operations.md) — для тех, кто администрирует сам хаб (боты/клиенты/маршруты, логи, мониторинг, Docker, бэкапы).
 
 ## Продакшен

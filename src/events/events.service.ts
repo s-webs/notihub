@@ -46,7 +46,7 @@ export class EventsService {
     }
 
     const notificationType = await this.prisma.notificationType.findUnique({
-      where: { code: dto.type },
+      where: { clientId_code: { clientId: client.id, code: dto.type } },
     });
     if (!notificationType) {
       throw new NotFoundException(`Unknown notification type: ${dto.type}`);

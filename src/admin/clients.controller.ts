@@ -23,6 +23,11 @@ export class ClientsController {
     return this.admin.listClients();
   }
 
+  @Get(':id')
+  get(@Param('id') id: string) {
+    return this.admin.getClient(id);
+  }
+
   @Post()
   create(@Body() dto: CreateClientDto) {
     return this.admin.createClient(dto);

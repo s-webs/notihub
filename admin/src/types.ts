@@ -14,6 +14,7 @@ export type Bot = {
 
 export type NotificationType = {
   id: string;
+  clientId: string;
   code: string;
   name: string;
 };
